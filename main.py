@@ -31,7 +31,11 @@ def get_types(df):
 # our target variable is price_doc
 traindf = pd.read_csv('train.csv')
 testdf = pd.read_csv('test.csv')
-pd.set_option('display.max_columns', 300)
+
+# fix broken years
+traindf.at[15220, 'build_year'] = 1965
+traindf.at[10089, 'build_year'] = 2009
+pd.set_option('display.max_columns', 15)
 
 # print(traindf.describe())
 
@@ -76,7 +80,6 @@ first_10_vars = first_10_vars.loc[:, (first_10_vars.columns != 'material') & (fi
 # encode booleans
 cats = traindf.select_dtypes(include='O')
 catdict = {}
-enc = preprocessing.OneHotEncoder(handle_unknown='ignore', drop='first')
 for column in cats.columns:
     num_cats = len(set(cats[column]))
     catdict[column] = num_cats
@@ -84,12 +87,44 @@ for column in cats.columns:
     if num_cats == 2:
         traindf[column] = pd.factorize(traindf[column])[0]
 
-print(catdict)
+# print(catdict)
 
 # count number of classes for categoricals (that aren't binary)
 cats = traindf.select_dtypes(include='O')
-print(cats.head(15))
+# print(cats.head(15))
 
 # there's 146 cats, so drop 'sub_area'
 traindf = traindf.loc[:, traindf.columns != 'sub_area']
-print(len(traindf.columns))
+
+# now, we only have one string-encoded categorical. OneHotEncoder
+one_hot = pd.get_dummies(traindf['ecology'])
+traindf = traindf.drop('ecology', axis=1)
+traindf = traindf.join(one_hot)
+
+# ratio of numerics to all columns (should be one)
+# print('\n\n\n' + str(len(traindf.select_dtypes('number').columns) / len(traindf.columns)))
+
+# we know should have extra columns with our one hot variable
+# print(len(traindf.columns))
+# print(sorted(list(traindf['build_year'].dropna()))[-10:])
+
+# now we impute all nans.
+traindf = traindf.fillna(traindf.median(axis=0, skipna=True))
+# print(list(traindf.mean(axis=0, skipna=True)))
+
+
+# print(traindf.iloc[:,1:15].head(15))
+
+# scale!
+scaler = preprocessing.StandardScaler()
+scaler.fit(traindf)
+traindf_scaled = scaler.transform(traindf)
+
+# print(traindf.head(25))
+
+# print(traindf_scaled.mean(axis=0))
+# print(traindf_scaled.std(axis=0))
+
+# NOW finally we can apply the model
+lr = linear_model.SGDRegressor()
+lr.fit(X=traindf_scaled[:, :-1], y=traindf_scaled[:, -1])
