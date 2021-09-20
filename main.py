@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import linear_model
+from sklearn import preprocessing
 
 
 # get the type of each column, as well as the distribution of types in the dataset
@@ -38,7 +39,7 @@ pd.set_option('display.max_columns', 300)
 # print(traindf.shape)
 # print(testdf.shape)
 #
-# # we have 157 ints, 16 non-scalars(strings), and 119 floats.
+# # we have 157 ints (includes id), 16 non-scalars(strings, includes timestamp), and 119 floats.
 print(get_types(traindf)[0])
 # print(get_types(traindf)[1])
 # print(list(traindf.columns))
@@ -58,16 +59,37 @@ first_10_vars = traindf.select_dtypes(include = 'number', exclude = 'O').iloc[:,
 first_10_vars = first_10_vars.loc[:, (first_10_vars.columns != 'material') & (first_10_vars.columns != 'timestamp')]
 # print(first_10_vars.head(10))
 
-# plot histograms
-fig, axs = plt.subplots(1, 5)
-num_bins = 8
-for i, column in enumerate(first_10_vars.columns[:5]):
-    axs[i % 5].hist(first_10_vars[column], num_bins, facecolor='blue', alpha = 0.65, linewidth = 1, edgecolor = 'black')
-    axs[i % 5].set_title(column)
-plt.show()
-fig, axs = plt.subplots(1, 5)
-num_bins = 8
-for i, column in enumerate(first_10_vars.columns[5:10]):
-    axs[i % 5].hist(first_10_vars[column], num_bins, facecolor='blue', alpha = 0.65, linewidth = 1, edgecolor = 'black')
-    axs[i % 5].set_title(column)
-plt.show()
+# # plot histograms
+# fig, axs = plt.subplots(1, 5)
+# num_bins = 8
+# for i, column in enumerate(first_10_vars.columns[:5]):
+#     axs[i % 5].hist(first_10_vars[column], num_bins, facecolor='blue', alpha = 0.65, linewidth = 1, edgecolor = 'black')
+#     axs[i % 5].set_title(column)
+# plt.show()
+# fig, axs = plt.subplots(1, 5)
+# num_bins = 8
+# for i, column in enumerate(first_10_vars.columns[5:10]):
+#     axs[i % 5].hist(first_10_vars[column], num_bins, facecolor='blue', alpha = 0.65, linewidth = 1, edgecolor = 'black')
+#     axs[i % 5].set_title(column)
+# plt.show()
+
+# encode booleans
+cats = traindf.select_dtypes(include='O')
+catdict = {}
+enc = preprocessing.OneHotEncoder(handle_unknown='ignore', drop='first')
+for column in cats.columns:
+    num_cats = len(set(cats[column]))
+    catdict[column] = num_cats
+    # if its a binary variable, simply enumerate it as 0s and 1s
+    if num_cats == 2:
+        traindf[column] = pd.factorize(traindf[column])[0]
+
+print(catdict)
+
+# count number of classes for categoricals (that aren't binary)
+cats = traindf.select_dtypes(include='O')
+print(cats.head(15))
+
+# there's 146 cats, so drop 'sub_area'
+traindf = traindf.loc[:, traindf.columns != 'sub_area']
+print(len(traindf.columns))
