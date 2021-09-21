@@ -4,7 +4,6 @@ import numpy as np
 from sklearn import linear_model
 from sklearn import preprocessing
 
-
 # get the type of each column, as well as the distribution of types in the dataset
 def get_types(df):
     # show the distribution of datatypes
@@ -44,7 +43,7 @@ pd.set_option('display.max_columns', 15)
 # print(testdf.shape)
 #
 # # we have 157 ints (includes id), 16 non-scalars(strings, includes timestamp), and 119 floats.
-print(get_types(traindf)[0])
+# print(get_types(traindf)[0])
 # print(get_types(traindf)[1])
 # print(list(traindf.columns))
 
@@ -125,6 +124,31 @@ traindf_scaled = scaler.transform(traindf)
 # print(traindf_scaled.mean(axis=0))
 # print(traindf_scaled.std(axis=0))
 
+
+# only keep correlated variables
+corrs = []
+traindf_scaled_small = np.zeros((30471, 1))
+for i in range(traindf_scaled.shape[1]-1):
+    corrs.append(np.corrcoef(traindf_scaled[:, i], traindf_scaled[:, -1])[1, 0])
+    if corrs[i] >= 0.215:
+        traindf_scaled_small = np.concatenate((traindf_scaled_small, np.expand_dims(traindf_scaled[:, i], axis=1)), axis=1)
+traindf_scaled_small = np.delete(traindf_scaled_small, 0, 1)
+print(traindf_scaled_small[:15, :])
+
+
+# let's set the cutoff for the correlation to be .1
+# print(sorted(list(corrs.values()))[-100:])
+
+
 # NOW finally we can apply the model
 lr = linear_model.SGDRegressor()
-lr.fit(X=traindf_scaled[:, :-1], y=traindf_scaled[:, -1])
+X = traindf_scaled[:, :-1]
+y = traindf_scaled[:, -1]
+lr.fit(X=X, y=y)
+y_pred = lr.predict(X)
+
+# make sure our predictions look right
+# print(y_pred.shape)
+
+# get the R2 score
+print('r^2 score:' + str(lr.score(X, y)))
