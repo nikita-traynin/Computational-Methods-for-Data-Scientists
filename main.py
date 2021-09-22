@@ -4,6 +4,7 @@ import numpy as np
 from sklearn import linear_model
 from sklearn import preprocessing
 from sklearn import metrics
+import seaborn as sn
 
 # get the type of each column, as well as the distribution of types in the dataset
 def get_types(df):
@@ -128,22 +129,31 @@ traindf_scaled = scaler.transform(traindf)
 
 # only keep correlated variables
 corrs = []
+high_corrs = {}
 traindf_scaled_small = np.zeros((30471, 1))
 for i in range(traindf_scaled.shape[1]-1):
     corrs.append(np.corrcoef(traindf_scaled[:, i], traindf_scaled[:, -1])[1, 0])
-    if corrs[i] >= 0.215:
+    if corrs[i] >= 0.15:
         traindf_scaled_small = np.concatenate((traindf_scaled_small, np.expand_dims(traindf_scaled[:, i], axis=1)), axis=1)
+        high_corrs[i] = corrs[i]
+
+# create dataset with only important variables
 traindf_scaled_small = np.delete(traindf_scaled_small, 0, 1)
 
+# print the highest correlations
+print(high_corrs)
 
-# let's set the cutoff for the correlation to be .1
-# print(sorted(list(corrs.values()))[-100:])
+#make the correlation heat map
+cols = traindf.columns[[(i in high_corrs.keys()) for i in range(traindf_scaled.shape[1])]]
+corrMatrix = pd.DataFrame(traindf_scaled_small).set_axis(cols, axis=1, inplace=False).corr()
+sn.heatmap(corrMatrix, annot=True)
+plt.show()
 
 
 # NOW finally we can apply the model
-lr = linear_model.SGDRegressor(max_iter=10000)
-X = traindf_scaled[:, :-1]
-y = traindf_scaled[:, -1]
+lr = linear_model.SGDRegressor(loss='squared_loss', alpha=0, max_iter=20000, verbose=10, learning_rate='constant', eta0=.001, early_stoppin=True)
+X = traindf_scaled_small[:, :-1]
+y = traindf_scaled_small[:, -1]
 
 # double check the shape of our final training set
 print(np.shape(X), np.shape(y))
@@ -157,8 +167,9 @@ y_pred = lr.predict(X)
 # make sure our predictions look right
 # print(y_pred.shape)
 
-# get the r2 and f1 scores - main metrics
+# get the r2 score
 print(type(y))
 print(type(y_pred))
 print('r^2 score:' + str(lr.score(X, y)))
-print('f1 score:' + str(metrics.f1_score(y, y_pred)))
+
+# we cannot do f1 score because this is a continuous target variable
